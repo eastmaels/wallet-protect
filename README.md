@@ -69,3 +69,19 @@ After running the setup script, you need to copy these files from the artifacts:
 ## API Documentation
 
 See `backend/README.md` for detailed API documentation.
+
+
+## Deployment (vercel)
+
+```bash
+vercel project
+vercel link --yes --project dpolls
+yarn build:demo && vercel build --prod && vercel --prebuilt --prod
+```
+## Deployment (Beta)
+
+```bash
+
+vercel project
+vercel link --yes --project dpolls-beta
+yarn build:demo && vercel build --prod && vercel --prebuilt --prod
