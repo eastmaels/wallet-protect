@@ -44,13 +44,6 @@ wallet-monitor/
    npm start
    ```
 
-## File Replacements Needed
-
-After running the setup script, you need to copy these files from the artifacts:
-
-1. **backend/server.js** - Copy the complete Node.js backend code
-2. **frontend/src/App.js** - Copy the complete React component code
-
 ## Features
 
 - Multi-blockchain wallet monitoring
