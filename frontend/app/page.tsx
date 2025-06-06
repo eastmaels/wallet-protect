@@ -10,14 +10,17 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Wallet, Shield, AlertTriangle, Bell, Activity } from "lucide-react"
-import { WalletConnection } from "@/components/wallet-connection"
 import { TransactionMonitor } from "@/components/transaction-monitor"
 import { AlertSystem } from "@/components/alert-system"
+import { ethers } from "ethers"
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useAccount, useBalance, useChainId } from 'wagmi';
 
-interface WalletData {
-  address: string
-  balance: string
-  network: string
+// Add type declarations for window.ethereum
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
 }
 
 interface Transaction {
@@ -43,8 +46,11 @@ interface SecurityAlert {
 }
 
 export default function WalletMonitorDApp() {
-  const [wallet, setWallet] = useState<WalletData | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+  const { data: balanceData } = useBalance({
+    address,
+  });
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [alerts, setAlerts] = useState<SecurityAlert[]>([])
   const [isMonitoring, setIsMonitoring] = useState(false)
@@ -55,15 +61,17 @@ export default function WalletMonitorDApp() {
     enablePhishingDetection: true,
     alertSound: true,
   })
+  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   // Mock data for demonstration
   useEffect(() => {
-    if (isConnected && wallet) {
+    if (isConnected && address) {
       // Simulate real-time transaction monitoring
       const interval = setInterval(() => {
         const mockTransaction: Transaction = {
           hash: `0x${Math.random().toString(16).substr(2, 64)}`,
-          from: wallet.address,
+          from: address,
           to: `0x${Math.random().toString(16).substr(2, 40)}`,
           value: (Math.random() * 5).toFixed(4),
           timestamp: Date.now(),
@@ -103,37 +111,54 @@ export default function WalletMonitorDApp() {
 
       return () => clearInterval(interval)
     }
-  }, [isConnected, wallet, settings.enableAlerts])
-
-  const connectWallet = async () => {
-    try {
-      // Mock wallet connection
-      const mockWallet: WalletData = {
-        address: "0x742d35Cc6634C0532925a3b8D4C2C4e4C4C4C4C4",
-        balance: "2.5847",
-        network: "Ethereum Mainnet",
-      }
-      setWallet(mockWallet)
-      setIsConnected(true)
-      setIsMonitoring(true)
-    } catch (error) {
-      console.error("Failed to connect wallet:", error)
-    }
-  }
-
-  const disconnectWallet = () => {
-    setWallet(null)
-    setIsConnected(false)
-    setIsMonitoring(false)
-    setTransactions([])
-    setAlerts([])
-  }
+  }, [isConnected, address, settings.enableAlerts])
 
   const acknowledgeAlert = (alertId: string) => {
     setAlerts((prev) => prev.map((alert) => (alert.id === alertId ? { ...alert, acknowledged: true } : alert)))
   }
 
   const unacknowledgedAlerts = alerts.filter((alert) => !alert.acknowledged)
+
+  const subscribeToProtection = async () => {
+    if (!address) return;
+    
+    setIsLoading(true);
+    try {
+      // Create message for signature
+      const message = `Verify wallet ownership for Nodit Protection Service\nWallet: ${address}`;
+      
+      // Request signature from user
+      const provider = new ethers.providers.Web3Provider(window.ethereum as ethers.providers.ExternalProvider);
+      const signer = provider.getSigner();
+      const signature = await signer.signMessage(message);
+
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/wallets/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          address,
+          signature,
+          message,
+          chains: [chainId] // Use chainId instead of chain name
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to subscribe to protection service');
+      }
+
+      const data = await response.json();
+      setIsSubscribed(true);
+    } catch (error) {
+      console.error('Failed to subscribe:', error);
+      // You might want to show an error notification here
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
@@ -156,15 +181,10 @@ export default function WalletMonitorDApp() {
                 <Activity className="h-3 w-3" />
                 {isMonitoring ? "Monitoring" : "Paused"}
               </Badge>
-              <Button onClick={disconnectWallet} variant="outline">
-                Disconnect
-              </Button>
+              <ConnectButton />
             </div>
           ) : (
-            <Button onClick={connectWallet} className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Connect Wallet
-            </Button>
+            <ConnectButton />
           )}
         </div>
 
@@ -180,7 +200,9 @@ export default function WalletMonitorDApp() {
         )}
 
         {!isConnected ? (
-          <WalletConnection onConnect={connectWallet} />
+          <div className="flex justify-center items-center min-h-[400px]">
+            <ConnectButton />
+          </div>
         ) : (
           <Tabs defaultValue="dashboard" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
@@ -204,8 +226,23 @@ export default function WalletMonitorDApp() {
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{wallet?.balance} ETH</div>
-                    <p className="text-xs text-muted-foreground">{wallet?.network}</p>
+                    <div className="text-2xl font-bold">{balanceData?.formatted} {balanceData?.symbol}</div>
+                    <p className="text-xs text-muted-foreground">Chain ID: {chainId}</p>
+                    {isConnected && !isSubscribed && (
+                      <Button 
+                        onClick={subscribeToProtection} 
+                        className="mt-4 w-full"
+                        variant="default"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? 'Verifying...' : 'Subscribe to Protection Service'}
+                      </Button>
+                    )}
+                    {isSubscribed && (
+                      <Badge className="mt-4" variant="default">
+                        Protection Active
+                      </Badge>
+                    )}
                   </CardContent>
                 </Card>
 
