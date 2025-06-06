@@ -2,6 +2,7 @@
   "name": "wallet-monitor-backend",
   "version": "1.0.0",
   "description": "Backend service for monitoring blockchain wallet addresses using Nodit APIs",
+  "type": "module",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -24,8 +25,14 @@
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "express": "^4.18.2",
-    "node-cron": "^3.0.3"
+    "ethers": "^6.14.3",
+    "express": "^4.21.2",
+    "mongoose": "^8.15.1",
+    "node-cron": "^3.0.3",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "jest": "^29.7.0",
