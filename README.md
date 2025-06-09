@@ -68,13 +68,6 @@ See `backend/README.md` for detailed API documentation.
 
 ```bash
 vercel project
-vercel link --yes --project dpolls
+vercel link --yes --project wallet-protect
 yarn build:demo && vercel build --prod && vercel --prebuilt --prod
 ```
-## Deployment (Beta)
-
-```bash
-
-vercel project
-vercel link --yes --project dpolls-beta
-yarn build:demo && vercel build --prod && vercel --prebuilt --prod
